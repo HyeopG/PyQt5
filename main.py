@@ -1,7 +1,6 @@
 import sys
 from PyQt5.QtWidgets import *
 from PyQt5 import uic
-#ㅁㄴㅇㅁㄴㅇ
 
 form_class = uic.loadUiType("C:\\PYQT\\1. PYQT\\main_window.ui")[0]
 
