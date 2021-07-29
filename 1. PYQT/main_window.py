@@ -7,19 +7,6 @@ import numpy as np
 from PIL import Image
 from PIL import ImageQt
 
-# import tensorflow as tf
-# from tensorflow.keras.datasets import mnist
-#
-# (x_train, y_train), (x_test, y_test) = mnist.load_data()
-#
-# x_train = x_train / 255.0
-# x_test = x_test / 255.0
-#
-# x_train = x_train.reshape(60000, 28, 28, 1)
-# x_test = x_test.reshape(10000, 28, 28, 1)
-#
-# input_shape = x_train[0]
-
 form_class = uic.loadUiType("C:\\PYQT\\1. PYQT\\main_window.ui")[0]
 
 class WindowClass(QMainWindow, form_class):
@@ -29,28 +16,56 @@ class WindowClass(QMainWindow, form_class):
 
         self.pushOpen.clicked.connect(self.openFunction)
         self.ShowImg.clicked.connect(self.ShowImgFunction)
+        self.RotationImg.clicked.connect(self.RotationImgFunction)
+        
 
-    def ShowImgFunction(self):
-        self.m_num = int(self.plainTextEdit.toPlainText())
-
-        if self.m_num > 9999 | self.m_num < 0:
-            return
-
-        x = 28
-        y = 28
+    def MakeImg(self, num):
+        # x, y값 설정
+        x = int(self.npData[num].shape[0])
+        y = int(self.npData[num].shape[1])
 
         img = Image.new("RGB", (x,y))
         data = np.array(img)
         
+        # 하나의 이미지 행렬을 만들어준다.
         count = 0
         for i in range(x):
             for j in range(y):
-                data[i][j] = self.dataset[self.m_num][count]
-                count+=1
+                data[i][j] = self.dataset[num][i][j]
+        return data
 
-        resultImg = Image.fromarray(data)
+
+
+
+
+    def RotationImgFunction(self):
+        # 각도 받아오기.
+        degree = int(self.plainTextEdit_2.toPlainText())
+        if degree % 360 == 0:
+            return
+        
+        width = int(self.npData[self.m_num].shape[0]) 
+        height = int(self.npData[self.m_num].shape[1])
+
+        # 회전 매트릭스 생성.
+        matrix = cv2.getRotationMatrix2D((width/2, height/2), degree, 1)
+        src = cv2.warpAffine(self.MakeImg(self.m_num), matrix, (width, height))
+        
+        # 결과 출력하기.
+        resultImg = Image.fromarray(src)
         self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
 
+
+    def ShowImgFunction(self):
+        self.m_num = int(self.plainTextEdit.toPlainText())
+        self.plainTextEdit_2.setPlainText("0")
+
+        if self.m_num >= int(self.npData.shape[0]) or self.m_num < 0:
+            return
+
+        # 결과 출력하기
+        resultImg = Image.fromarray(self.MakeImg(self.m_num))
+        self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
 
 
     def openFunction(self):
@@ -66,24 +81,26 @@ class WindowClass(QMainWindow, form_class):
         
             Dsize = int("0x"+sizeData[0]+sizeData[1]+sizeData[2]+sizeData[3], 16)
 
+            #dataX, dataY = x와 y의 크기
+            self.dataX = data[11]
+            self.dataY = data[15]
 
             #dateset에 mnist이미지 삽입.
             self.dataset = []
             count = 0
             data = f.read()
             for size in range(Dsize):
-                savedata = []
-                for x in range(28):
-                    for y in range(28):
-                        savedata.append(data[count])
+                savedataX = []
+                for x in range(self.dataX):
+                    savedataY = []
+                    for y in range(self.dataY):
+                        savedataY.append(data[count])
                         count+=1
-                self.dataset.append(savedata)
+                    savedataX.append(savedataY)
+                self.dataset.append(savedataX)
 
-            #self.plainTextEdit.setPlainText(data)
-            #self.photo.setPixmap(QtGui.QPixmap(fname[0]))
-            print("open!!")
-
-        f.close()
+            self.npData = np.array(self.dataset)
+            f.close()
 
 
 
