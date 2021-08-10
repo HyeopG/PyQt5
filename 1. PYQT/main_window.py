@@ -13,10 +13,14 @@ class WindowClass(QMainWindow, form_class):
         super().__init__()
         self.setupUi(self)
 
+        self.dataset = []
+
         self.pushOpen.clicked.connect(self.openFunction)
         self.ShowImg.clicked.connect(self.ShowImgFunction)
         self.RotationImg.clicked.connect(self.RotationImgFunction)
-        
+        self.horizontalScrollBar.actionTriggered.connect(self.scrollBarFunction)
+        self.Zoom.clicked.connect(self.ZoomFunction)
+        self.allSave.clicked.connect(self.allSaveFunction)
 
     def MakeImg(self, num):
         # x, y값 설정
@@ -30,41 +34,107 @@ class WindowClass(QMainWindow, form_class):
         count = 0
         for i in range(x):
             for j in range(y):
-                data[i][j] = self.dataset[num][i][j]
+                data[i][j] = self.npData[num][i][j]
         return data
 
 
+    def allSaveFunction(self):
+        if self.dataset:
+            degree = int(self.plainTextEdit_2.toPlainText())
+            zoomNum = float(self.plainTextEdit_3.toPlainText())
 
+            if degree % 360 == 0 and zoomNum <= 0:
+                return
+            
+            self.dataset = []  # 데이터셋 초기화.
+            for i in range(self.npData.shape-1):
+                if zoomNum > 0:
+                    dst = cv2.resize(self.MakeImg(i), None, fx = zoomNum, fy = zoomNum, interpolation=cv2.INTER_CUBIC)
+                else:
+                    dst = self.MakeImg(i)
+
+                width = dst.shape[0]
+                height = dst.shape[1]
+
+                if degree % 360 != 0:
+                    matrix = cv2.getRotationMatrix2D((width/2, height/2), degree, 1)
+                    src = cv2.warpAffine(dst, matrix, (width, height))
+                    self.dataset[i] = src
+                else:
+                    self.dataset[i] = dst
+
+    def ZoomFunction(self):
+        if self.dataset:
+            zoomNum = float(self.plainTextEdit_3.toPlainText())
+
+            if zoomNum <= 0:
+                return
+
+            width = int(self.npData[self.m_num].shape[0]) 
+            height = int(self.npData[self.m_num].shape[1])
+
+            dst = cv2.resize(self.MakeImg(self.m_num), None, fx = zoomNum, fy = zoomNum, interpolation=cv2.INTER_CUBIC)
+
+            for x in range(width):
+                for y in range(height):
+                    self.npData[self.m_num][x][y] = dst[x][y][0]
+
+            resultImg = Image.fromarray(dst)
+            self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
+
+
+    def scrollBarFunction(self):
+        sValue = self.horizontalScrollBar.value()
+        self.plainTextEdit.setPlainText(str(sValue))
+
+        if self.dataset:
+            self.plainTextEdit_2.setPlainText("0")
+            self.plainTextEdit_3.setPlainText("0")
+
+            if sValue >= int(self.npData.shape[0]) or sValue < 0:
+                return
+
+            # 결과 출력하기
+            resultImg = Image.fromarray(self.MakeImg(sValue))
+            self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
 
 
     def RotationImgFunction(self):
-        # 각도 받아오기.
-        degree = int(self.plainTextEdit_2.toPlainText())
-        if degree % 360 == 0:
-            return
-        
-        width = int(self.npData[self.m_num].shape[0]) 
-        height = int(self.npData[self.m_num].shape[1])
+        if self.dataset:
+            # 각도 받아오기.
+            degree = int(self.plainTextEdit_2.toPlainText())
+            if degree % 360 == 0:
+                return
+            
+            width = int(self.npData[self.m_num].shape[0]) 
+            height = int(self.npData[self.m_num].shape[1])
 
-        # 회전 매트릭스 생성.
-        matrix = cv2.getRotationMatrix2D((width/2, height/2), degree, 1)
-        src = cv2.warpAffine(self.MakeImg(self.m_num), matrix, (width, height))
+            # 회전 매트릭스 생성.
+            matrix = cv2.getRotationMatrix2D((width/2, height/2), degree, 1)
+            src = cv2.warpAffine(self.MakeImg(self.m_num), matrix, (width, height))
         
-        # 결과 출력하기.
-        resultImg = Image.fromarray(src)
-        self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
+            for x in range(width):
+                for y in range(height):
+                    self.npData[self.m_num][x][y] = src[x][y][0]
+
+            # 결과 출력하기.
+            resultImg = Image.fromarray(src)
+            self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
 
 
     def ShowImgFunction(self):
-        self.m_num = int(self.plainTextEdit.toPlainText())
-        self.plainTextEdit_2.setPlainText("0")
+        if self.dataset:
+            self.m_num = int(self.plainTextEdit.toPlainText())
+            self.plainTextEdit_2.setPlainText("0")
+            self.plainTextEdit_3.setPlainText("0")
+            self.horizontalScrollBar.setValue(self.m_num)
 
-        if self.m_num >= int(self.npData.shape[0]) or self.m_num < 0:
-            return
+            if self.m_num >= int(self.npData.shape[0]) or self.m_num < 0:
+                return
 
-        # 결과 출력하기
-        resultImg = Image.fromarray(self.MakeImg(self.m_num))
-        self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
+            # 결과 출력하기
+            resultImg = Image.fromarray(self.MakeImg(self.m_num))
+            self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
 
 
     def openFunction(self):
@@ -99,6 +169,8 @@ class WindowClass(QMainWindow, form_class):
                 self.dataset.append(savedataX)
 
             self.npData = np.array(self.dataset)
+
+            self.horizontalScrollBar.setRange(0, self.npData.shape[0]-1)
             f.close()
 
 
