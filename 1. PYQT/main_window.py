@@ -48,7 +48,7 @@ class WindowClass(QMainWindow, form_class):
                 return
             
             self.saveData = []  # 데이터셋 초기화.
-            for i in range(int(self.npData.shape[0])):
+            for i in range(len(self.dataset)):
                 if zoomNum > 0:
                     dst = cv2.resize(self.MakeImg(self.dataset[i]), None, fx = zoomNum, fy = zoomNum, interpolation=cv2.INTER_CUBIC)
                 else:
@@ -96,7 +96,7 @@ class WindowClass(QMainWindow, form_class):
             self.plainTextEdit_2.setPlainText("0")
             self.plainTextEdit_3.setPlainText("0")
 
-            if sValue >= int(self.npData.shape[0]) or sValue < 0:
+            if sValue >= len(self.dataset) or sValue < 0:
                 return
 
             self.nowData = self.dataset[self.m_num]
@@ -139,7 +139,7 @@ class WindowClass(QMainWindow, form_class):
             self.plainTextEdit_3.setPlainText("0")
             self.horizontalScrollBar.setValue(self.m_num)
 
-            if self.m_num >= int(self.npData.shape[0]) or self.m_num < 0:
+            if self.m_num >= len(self.dataset) or self.m_num < 0:
                 return
 
             self.nowData = self.dataset[self.m_num]
@@ -186,9 +186,7 @@ class WindowClass(QMainWindow, form_class):
                     savedataX.append(savedataY)
                 self.dataset.append(savedataX)
 
-            self.npData = np.array(self.dataset)
-
-            self.horizontalScrollBar.setRange(0, self.npData.shape[0]-1)
+            self.horizontalScrollBar.setRange(0, len(self.dataset) - 1)
             f.close()
 
     def saveFunction(self):
