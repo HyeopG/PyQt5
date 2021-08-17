@@ -14,18 +14,20 @@ class WindowClass(QMainWindow, form_class):
         self.setupUi(self)
 
         self.dataset = []
+        self.nowData = []
 
         self.pushOpen.clicked.connect(self.openFunction)
+        self.pushSave.clicked.connect(self.saveFunction)
         self.ShowImg.clicked.connect(self.ShowImgFunction)
         self.RotationImg.clicked.connect(self.RotationImgFunction)
         self.horizontalScrollBar.actionTriggered.connect(self.scrollBarFunction)
         self.Zoom.clicked.connect(self.ZoomFunction)
         self.allSave.clicked.connect(self.allSaveFunction)
 
-    def MakeImg(self, num):
+    def MakeImg(self, Ndata):
         # x, y값 설정
-        x = int(self.npData[num].shape[0])
-        y = int(self.npData[num].shape[1])
+        x = len(Ndata)
+        y = len(Ndata)
 
         img = Image.new("RGB", (x,y))
         data = np.array(img)
@@ -34,9 +36,8 @@ class WindowClass(QMainWindow, form_class):
         count = 0
         for i in range(x):
             for j in range(y):
-                data[i][j] = self.npData[num][i][j]
+                data[i][j] = Ndata[i][j]
         return data
-
 
     def allSaveFunction(self):
         if self.dataset:
@@ -46,12 +47,12 @@ class WindowClass(QMainWindow, form_class):
             if degree % 360 == 0 and zoomNum <= 0:
                 return
             
-            self.dataset = []  # 데이터셋 초기화.
-            for i in range(self.npData.shape-1):
+            self.saveData = []  # 데이터셋 초기화.
+            for i in range(int(self.npData.shape[0])):
                 if zoomNum > 0:
-                    dst = cv2.resize(self.MakeImg(i), None, fx = zoomNum, fy = zoomNum, interpolation=cv2.INTER_CUBIC)
+                    dst = cv2.resize(self.MakeImg(self.dataset[i]), None, fx = zoomNum, fy = zoomNum, interpolation=cv2.INTER_CUBIC)
                 else:
-                    dst = self.MakeImg(i)
+                    dst = self.MakeImg(self.dataset[i])
 
                 width = dst.shape[0]
                 height = dst.shape[1]
@@ -59,9 +60,10 @@ class WindowClass(QMainWindow, form_class):
                 if degree % 360 != 0:
                     matrix = cv2.getRotationMatrix2D((width/2, height/2), degree, 1)
                     src = cv2.warpAffine(dst, matrix, (width, height))
-                    self.dataset[i] = src
+                    self.saveData.append(src)
                 else:
-                    self.dataset[i] = dst
+                    self.saveData.append(src)
+        self.dataset = self.saveData
 
     def ZoomFunction(self):
         if self.dataset:
@@ -70,14 +72,17 @@ class WindowClass(QMainWindow, form_class):
             if zoomNum <= 0:
                 return
 
-            width = int(self.npData[self.m_num].shape[0]) 
-            height = int(self.npData[self.m_num].shape[1])
+            width = len(self.nowData)
+            height = len(self.nowData)
 
-            dst = cv2.resize(self.MakeImg(self.m_num), None, fx = zoomNum, fy = zoomNum, interpolation=cv2.INTER_CUBIC)
+            dst = cv2.resize(self.MakeImg(self.nowData), None, fx = zoomNum, fy = zoomNum, interpolation=cv2.INTER_CUBIC)
 
-            for x in range(width):
-                for y in range(height):
-                    self.npData[self.m_num][x][y] = dst[x][y][0]
+            self.nowData = []
+            for x in range(dst.shape[0]):
+                temp = []
+                for y in range(dst.shape[1]):
+                    temp.append(dst[x][y][0])
+                self.nowData.append(temp)
 
             resultImg = Image.fromarray(dst)
             self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
@@ -94,8 +99,10 @@ class WindowClass(QMainWindow, form_class):
             if sValue >= int(self.npData.shape[0]) or sValue < 0:
                 return
 
+            self.nowData = self.dataset[self.m_num]
+
             # 결과 출력하기
-            resultImg = Image.fromarray(self.MakeImg(sValue))
+            resultImg = Image.fromarray(self.MakeImg(self.dataset[sValue]))
             self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
 
 
@@ -106,16 +113,19 @@ class WindowClass(QMainWindow, form_class):
             if degree % 360 == 0:
                 return
             
-            width = int(self.npData[self.m_num].shape[0]) 
-            height = int(self.npData[self.m_num].shape[1])
+            width = len(self.nowData)
+            height = len(self.nowData)
 
             # 회전 매트릭스 생성.
             matrix = cv2.getRotationMatrix2D((width/2, height/2), degree, 1)
-            src = cv2.warpAffine(self.MakeImg(self.m_num), matrix, (width, height))
+            src = cv2.warpAffine(self.MakeImg(self.nowData), matrix, (width, height))
         
-            for x in range(width):
-                for y in range(height):
-                    self.npData[self.m_num][x][y] = src[x][y][0]
+            self.nowData = []
+            for x in range(src.shape[0]):
+                temp = []
+                for y in range(src.shape[1]):
+                    temp.append(src[x][y][0])
+                self.nowData.append(temp)
 
             # 결과 출력하기.
             resultImg = Image.fromarray(src)
@@ -132,18 +142,21 @@ class WindowClass(QMainWindow, form_class):
             if self.m_num >= int(self.npData.shape[0]) or self.m_num < 0:
                 return
 
-            # 결과 출력하기
-            resultImg = Image.fromarray(self.MakeImg(self.m_num))
-            self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
+            self.nowData = self.dataset[self.m_num]
 
+            # 결과 출력하기
+            resultImg = Image.fromarray(self.MakeImg(self.nowData))
+            self.photo.setPixmap(ImageQt.toqpixmap(resultImg))
 
     def openFunction(self):
         fname = QFileDialog.getOpenFileName(self, 'Open File', '',
                                             'Mnist File(*.idx3-ubyte *.IDX3-UBYTE)')
+        if fname[0] == "":
+            return
 
         with open(fname[0], mode='rb') as f:
             data = f.read(16) # 헤더읽기
-            
+
             #sizeData, Dsize = 이미지전체 개수!
             sizeData = (hex(data[4])+hex(data[5])+hex(data[6])+hex(data[7])).split("0x")
             sizeData.pop(0)
@@ -151,8 +164,13 @@ class WindowClass(QMainWindow, form_class):
             Dsize = int("0x"+sizeData[0]+sizeData[1]+sizeData[2]+sizeData[3], 16)
 
             #dataX, dataY = x와 y의 크기
-            self.dataX = data[11]
-            self.dataY = data[15]
+            sizeX = (hex(data[8])+hex(data[9])+hex(data[10])+hex(data[11])).split("0x")
+            sizeX.pop(0)
+            sizeY = (hex(data[12])+hex(data[13])+hex(data[14])+hex(data[15])).split("0x")
+            sizeY.pop(0)
+
+            dataX = int("0x"+sizeX[0]+sizeX[1]+sizeX[2]+sizeX[3], 16)
+            dataY = int("0x"+sizeY[0]+sizeY[1]+sizeY[2]+sizeY[3], 16)
 
             #dateset에 mnist이미지 삽입.
             self.dataset = []
@@ -160,9 +178,9 @@ class WindowClass(QMainWindow, form_class):
             data = f.read()
             for size in range(Dsize):
                 savedataX = []
-                for x in range(self.dataX):
+                for x in range(dataX):
                     savedataY = []
-                    for y in range(self.dataY):
+                    for y in range(dataY):
                         savedataY.append(data[count])
                         count+=1
                     savedataX.append(savedataY)
@@ -173,9 +191,49 @@ class WindowClass(QMainWindow, form_class):
             self.horizontalScrollBar.setRange(0, self.npData.shape[0]-1)
             f.close()
 
+    def saveFunction(self):
+        fname = QFileDialog.getSaveFileName(self, 'Save File', '',
+                                    'Mnist File(*.idx3-ubyte *.IDX3-UBYTE)')
+        if fname[0] == "":
+            return
+        with open(fname[0], mode='wb') as f:
+            f.write(bytes([0,0,8,3]))
+
+            self.writePushHax(f, len(self.saveData))
+            self.writePushHax(f, len(self.saveData[0]))
+            self.writePushHax(f, len(self.saveData[0]))
+
+            for size in range(len(self.saveData)):
+                for x in range(len(self.saveData[size])):
+                    for y in range(len(self.saveData[size])):
+                        f.write(bytes([self.saveData[size][x][y][0]]))
+
+    def writePushHax(self, f, value):
+            size = hex(value)
+            start = 2
+            stack = 0 # 바이트만들기 위한 갯수 스택
+            for i in range(8, 1, -1):
+                if len(size)-2 < i:
+                    stack += 1
+                    if stack%2 == 0:
+                        f.write(bytes([0]))
+
+                elif i%2 == 1:      # 홀수이면 0과 한자리 값을 넣고 짝수칸으로 갈 수 있도록!
+                    f.write(bytes([0+int("0x"+size[start], 16)]))
+                    start += 1
+                    continue
+
+                elif i%2 == 0:
+                    for num in range(start, i+1, 2):
+                        temp = int("0x"+size[num], 16)*16 + int("0x"+size[num+1], 16)
+                        f.write(bytes([temp]))
+                    break
+
+
+        
 
 
 app = QApplication(sys.argv)
-mainWindow = WindowClass()
+mainWindow = WindowClass() 
 mainWindow.show()
 app.exec_()
